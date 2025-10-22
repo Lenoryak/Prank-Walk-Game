@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пранк-прогулка</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 20px;
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .scene {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 5px solid #ff6b6b;
+            min-height: 150px;
+        }
+        
+        .choices {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        button {
+            background: #4ecdc4;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background: #45b7af;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .health-bar {
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+            width: 100%;
+            transition: width 0.5s ease;
+        }
+        
+        .prank-counter {
+            text-align: center;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        
+        .game-over {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .game-over h2 {
+            color: #ff6b6b;
+            font-size: 2em;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .prank-effect {
+            animation: shake 0.5s ease-in-out;
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .inventory {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .inventory-item {
+            background: #ffe66d;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            border: 2px dashed #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>👻 Пранк-Прогулка 👻</h1>
+        
+        <div class="prank-counter">Пранков пережито: <span id="prankCount">0</span></div>
+        <div class="health-bar">
+            <div class="health-fill" id="healthBar" style="width: 100%;"></div>
+        </div>
+        
+        <div class="inventory" id="inventory"></div>
+        
+        <div id="gameScreen">
+            <div class="scene" id="scene">
+                <p>Саша вышел вечером погулять со своей собакой Бяшей. Это был один из приятных теплых вечеров. Как вдруг ему на телефон пришло сообщение от друга Гриши....</p>
+            </div>
+            
+            <div class="choices" id="choices">
+                <button onclick="makeChoice('ignore')">Проигнорировать сообщение и идти дальше</button>
+                <button onclick="makeChoice('read')">Открыть и прочитать сообщение</button>
+            </div>
+        </div>
+        
+        <div id="gameOverScreen" class="game-over hidden">
+            <h2 id="gameOverTitle">Игра Окончена!</h2>
+            <p id="gameOverText"></p>
+            <button onclick="restartGame()">Играть снова</button>
+        </div>
+    </div>
+
+    <script>
+        let gameState = {
+            health: 100,
+            prankCount: 0,
+            inventory: [],
+            currentScene: 'start',
+            hasUmbrella: false,
+            hasGlasses: false
+        };
+
+        const scenes = {
+            start: {
+                text: "Саша вышел вечером погулять со своей собакой Бяшей. Это был один из приятных теплых вечеров. Как вдруг ему на телефон пришло сообщение от друга Гриши....",
+                choices: [
+                    { text: "Проигнорировать сообщение и идти дальше", next: "ignore" },
+                    { text: "Открыть и прочитать сообщение", next: "read" }
+                ]
+            },
+            
+            ignore: {
+                text: "Саша пошел гулять с собакой дальше. Этот вечер прошел также однообразно как и все предыдущие.",
+                choices: [
+                    { text: "Начать заново", next: "restart" }
+                ]
+            },
+            
+            read: {
+                text: "Сообщение от Гриши: 'Срочно прийди в парк! Там такое происходит!'",
+                choices: [
+                    { text: "Идти короткой дорогой через темный переулок", next: "alley" },
+                    { text: "Выбрать длинный путь через людный проспект", next: "street" },
+                    { text: "Позвонить друзьям и уточнить, что происходит", next: "call" }
+                ]
+            },
+            
+            alley: {
+                text: "В темном переулке на тебя с крыши падает ведро с конфетти! Ты весь в блестках.",
+                effect: { health: -10, prank: true },
+                choices: [
+                    { text: "Стряхнуть конфетти и продолжить", next: "alley2" },
+                    { text: "Осмотреть крышу", next: "roof" },
+                    { text: "Вернуться и пойти другой дорогой", next: "street" }
+                ]
+            },
+            
+            alley2: {
+                text: "Из-за угла выскакивает друг с криком 'Сюрприз!' Ты подпрыгиваешь от неожиданности.",
+                effect: { health: -15, prank: true },
+                choices: [
+                    { text: "Продолжать идти, игнорируя шутки", next: "park" },
+                    { text: "Попытаться найти обидчика", next: "chase" }
+                ]
+            },
+            
+            street: {
+                text: "На людном проспекте к тебе подходит незнакомец и вручает цветок. Ты берешь его, и вдруг раздается хлопок - это хлопушка!",
+                effect: { health: -5, prank: true },
+                choices: [
+                    { text: "Быстро пройти дальше", next: "street2" },
+                    { text: "Спрятаться в кафе", next: "cafe" }
+                ]
+            },
+            
+            street2: {
+                text: "Возле киоска ты наступаешь на что-то мягкое... Это оказалась подложенная мышеловка-шутка! Хотя безвредно, но неприятно.",
+                effect: { health: -10, prank: true },
+                choices: [
+                    { text: "Осмотреться подозрительно", next: "suspicious" },
+                    { text: "Ускорить шаг", next: "park" }
+                ]
+            },
+            
+            call: {
+                text: "Ты звонишь друзьям. Они говорят, что все в порядке и просто хотят встретиться. Но в их голосах слышится странное напряжение...",
+                choices: [
+                    { text: "Поверить им и идти", next: "trust" },
+                    { text: "Решить, что это ловушка, и пойти домой", next: "home" }
+                ]
+            },
+            
+            trust: {
+                text: "По дороге ты замечаешь тени, перемещающиеся между деревьями. Друзья явно что-то затеяли...",
+                choices: [
+                    { text: "Игнорировать и продолжать путь", next: "park" },
+                    { text: "Попытаться обойти парк с другой стороны", next: "back_entrance" }
+                ]
+            },
+            
+            roof: {
+                text: "Ты забираешься на крышу и находишь там записку: 'Мы знали, что ты полезешь проверять! Пранк удался вдвойне!'",
+                effect: { health: -5, prank: true },
+                choices: [
+                    { text: "Спуститься и продолжить путь", next: "alley2" }
+                ]
+            },
+            
+            chase: {
+                text: "Ты бежишь за тенью, но натыкаешься на натянутую веревку и падаешь в кучу листьев. Сверху раздается смех.",
+                effect: { health: -20, prank: true },
+                choices: [
+                    { text: "Сдаться и идти в парк", next: "park" },
+                    { text: "Попробовать найти другой путь", next: "back_entrance" }
+                ]
+            },
+            
+            cafe: {
+                text: "В кафе ты заказываешь кофе, но когда открываешь сахарницу - оттуда выпрыгивает резиновая змея! Бариста смеется - это был его друг.",
+                effect: { health: -10, prank: true },
+                getItem: "umbrella",
+                choices: [
+                    { text: "Взять зонт у входа (на всякий случай) и выйти", next: "street2" },
+                    { text: "Выйти без зонта", next: "street2" }
+                ]
+            },
+            
+            suspicious: {
+                text: "Ты внимательно осматриваешься и замечаетe привязанную к дереву веревку. Кажется, ты избежал очередной ловушки!",
+                getItem: "glasses",
+                choices: [
+                    { text: "Взять солнечные очки для маскировки", next: "park" },
+                    { text: "Продолжить без очков", next: "park" }
+                ]
+            },
+            
+            back_entrance: {
+                text: "Ты подходишь к парку с заднего входа. Кажется, тебя никто не заметил... Но вдруг из кустов выпрыгивают все твои друзья с криком 'С ДНЕМ РОЖДЕНИЯ!' Оказывается, это был сюрприз, а не пранк!",
+                choices: [
+                    { text: "🎉 Отпраздновать!", next: "win" }
+                ]
+            },
+            
+            park: {
+                text: "Ты приходишь в парк. Вдруг все фонари гаснут, и на тебя направляются десятки светящихся глаз... Это твои друзья с фонариками под глазами! Ты пугаешься до смерти.",
+                effect: { health: -30, prank: true },
+                choices: [
+                    { text: "Попытаться сбежать", next: "escape" },
+                    { text: "Смириться с своей судьбой", next: "accept" }
+                ]
+            },
+            
+            home: {
+                text: "Ты решаешь, что сегодня не лучший день для встреч, и идешь домой. Вечером друзья пишут, что у них был для тебя сюрприз. Может, ты слишком подозрительный?",
+                choices: [
+                    { text: "Начать заново", next: "restart" }
+                ]
+            },
+            
+            escape: {
+                text: "Ты бежишь из парка, но спотыкаешься о натянутую леску и падаешь прямо в огромный торт, который друзья приготовили для празднования. Теперь ты весь в креме!",
+                effect: { health: -25 },
+                choices: [
+                    { text: "Сдаться и смеяться вместе со всеми", next: "win" }
+                ]
+            },
+            
+            accept: {
+                text: "Ты стоишь и принимаешь свою судьбу. Друзья окружают тебя с подарками и тортом - оказывается, они устроили квест с пранками для твоего дня рождения!",
+                choices: [
+                    { text: "🎂 Отпраздновать день рождения!", next: "win" }
+                ]
+            },
+            
+            win: {
+                text: "Поздравляем! Ты пережил все пранки и обнаружил, что это был сюрприз на твой день рождения! Друзья признаются, что maybe переборщили с шутками, но все закончилось веселой вечеринкой.",
+                choices: [
+                    { text: "Начать заново", next: "restart" }
+                ]
+            }
+        };
+
+        function updateGame() {
+            const scene = scenes[gameState.currentScene];
+            document.getElementById('scene').innerHTML = `<p>${scene.text}</p>`;
+            
+            // Обновляем здоровье
+            document.getElementById('healthBar').style.width = `${gameState.health}%`;
+            document.getElementById('prankCount').textContent = gameState.prankCount;
+            
+            // Обновляем инвентарь
+            updateInventory();
+            
+            // Создаем кнопки выбора
+            const choicesContainer = document.getElementById('choices');
+            choicesContainer.innerHTML = '';
+            
+            scene.choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.textContent = choice.text;
+                button.onclick = () => makeChoice(choice.next);
+                choicesContainer.appendChild(button);
+            });
+        }
+
+        function makeChoice(nextScene) {
+            const scene = scenes[gameState.currentScene];
+            
+            // Применяем эффекты сцены
+            if (scene.effect) {
+                if (scene.effect.health) {
+                    gameState.health += scene.effect.health;
+                    
+                    // Анимация эффекта
+                    const sceneElement = document.getElementById('scene');
+                    sceneElement.classList.add('prank-effect');
+                    setTimeout(() => {
+                        sceneElement.classList.remove('prank-effect');
+                    }, 500);
+                }
+                
+                if (scene.effect.prank) {
+                    gameState.prankCount++;
+                }
+            }
+            
+            // Добавляем предметы
+            if (scene.getItem && !gameState.inventory.includes(scene.getItem)) {
+                gameState.inventory.push(scene.getItem);
+                if (scene.getItem === 'umbrella') gameState.hasUmbrella = true;
+                if (scene.getItem === 'glasses') gameState.hasGlasses = true;
+            }
+            
+            // Проверяем здоровье
+            if (gameState.health <= 0) {
+                gameOver("Ты не выдержал этого издевательства и потерял сознание от стресса. Друзья пожалели, что переборщили с пранками.");
+                return;
+            }
+            
+            // Переход к следующей сцене или перезапуск
+            if (nextScene === 'restart') {
+                restartGame();
+                return;
+            }
+            
+            gameState.currentScene = nextScene;
+            updateGame();
+        }
+
+        function updateInventory() {
+            const inventoryContainer = document.getElementById('inventory');
+            inventoryContainer.innerHTML = '';
+            
+            if (gameState.hasUmbrella) {
+                const item = document.createElement('div');
+                item.className = 'inventory-item';
+                item.textContent = '☂️ Зонт';
+                inventoryContainer.appendChild(item);
+            }
+            
+            if (gameState.hasGlasses) {
+                const item = document.createElement('div');
+                item.className = 'inventory-item';
+                item.textContent = '😎 Очки';
+                inventoryContainer.appendChild(item);
+            }
+        }
+
+        function gameOver(message) {
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            document.getElementById('gameOverTitle').textContent = "Игра Окончена!";
+            document.getElementById('gameOverText').textContent = `${message} Ты пережил ${gameState.prankCount} пранков.`;
+        }
+
+        function restartGame() {
+            gameState = {
+                health: 100,
+                prankCount: 0,
+                inventory: [],
+                currentScene: 'start',
+                hasUmbrella: false,
+                hasGlasses: false
+            };
+            
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            updateGame();
+        }
+
+        // Инициализация игры
+        updateGame();
+    </script>
+</body>
+</html>
